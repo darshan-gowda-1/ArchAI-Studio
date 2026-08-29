@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --arch-bg: #080A0D;
+  --arch-surface: #11151A;
+  --arch-surface-hover: #171D24;
+  --arch-border: #1E2530;
+  --arch-text-primary: #F1F5F9;
+  --arch-text-muted: #94A3B8;
+  --arch-amber: #D97706;
+  --arch-copper: #B45309;
+  --arch-cad-blue: #0284C7;
+  --arch-cad-sky: #38BDF8;
+  --arch-emerald: #10B981;
+}
+
+body {
+  color: var(--arch-text-primary);
+  background-color: var(--arch-bg);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbars for technical CAD look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080A0D;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1E2530;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 30s linear infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 4s ease-in-out infinite;
+}

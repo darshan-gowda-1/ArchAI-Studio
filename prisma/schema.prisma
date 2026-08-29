@@ -1,0 +1,270 @@
+// Prisma Schema Definition for ArchAI Studio
+// PostgreSQL + PostGIS Enterprise Architecture
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis, uuidOssp(map: "uuid-ossp")]
+}
+
+enum UserRole {
+  ARCHITECT
+  STRUCTURAL_ENGINEER
+  MEP_ENGINEER
+  CLIENT
+  ADMIN
+}
+
+enum ProjectStatus {
+  DRAFT
+  OPTIMIZING
+  APPROVED
+  UNDER_CONSTRUCTION
+  ARCHIVED
+}
+
+model User {
+  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email     String    @unique
+  name      String
+  role      UserRole  @default(ARCHITECT)
+  projects  Project[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Project {
+  id                       String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                   String         @map("user_id") @db.Uuid
+  user                     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title                    String
+  description              String?
+  status                   ProjectStatus  @default(DRAFT)
+  buildingCodeJurisdiction String         @default("NBC_INDIA") @map("building_code_jurisdiction")
+  sites                    Site[]
+  requirements             Requirement[]
+  designs                  Design[]
+  reports                  Report[]
+  jobs                     Job[]
+  createdAt                DateTime       @default(now()) @map("created_at")
+  updatedAt                DateTime       @updatedAt @map("updated_at")
+
+  @@map("projects")
+}
+
+model Site {
+  id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  projectId             String   @map("project_id") @db.Uuid
+  project               Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  formattedAddress      String   @map("formatted_address")
+  elevationMeters       Decimal  @default(24.0) @map("elevation_meters") @db.Decimal(8, 2)
+  slopeGradientPercent  Decimal  @default(1.8) @map("slope_gradient_percent") @db.Decimal(5, 2)
+  soilType              String   @default("Medium Clay") @map("soil_type")
+  soilBearingCapacityKpa Decimal @default(180.0) @map("soil_bearing_capacity_kpa") @db.Decimal(8, 2)
+  plots                 Plot[]
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@map("sites")
+}
+
+model Plot {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  siteId          String   @map("site_id") @db.Uuid
+  site            Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  lengthFt        Decimal  @map("length_ft") @db.Decimal(8, 2)
+  widthFt         Decimal  @map("width_ft") @db.Decimal(8, 2)
+  roadWidthFt     Decimal  @default(30.0) @map("road_width_ft") @db.Decimal(8, 2)
+  roadOrientation String   @default("South") @map("road_orientation")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("plots")
+}
+
+model Requirement {
+  id                 String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  projectId          String   @map("project_id") @db.Uuid
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  floors             Int      @default(2)
+  bedrooms           Int      @default(3)
+  bathrooms          Int      @default(3)
+  parkingCapacity    Int      @default(2) @map("parking_capacity")
+  hasPoojaRoom       Boolean  @default(true) @map("has_pooja_room")
+  hasOffice          Boolean  @default(true) @map("has_office")
+  hasKitchen         Boolean  @default(true) @map("has_kitchen")
+  hasLiving          Boolean  @default(true) @map("has_living")
+  targetBudgetInr    Decimal  @default(4000000.0) @map("target_budget_inr") @db.Decimal(12, 2)
+  architecturalStyle String   @default("Modern Sustainable") @map("architectural_style")
+
+  @@map("requirements")
+}
+
+model Design {
+  id                   String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  projectId            String          @map("project_id") @db.Uuid
+  project              Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name                 String
+  subtitle             String?
+  archetype            String
+  paretoRank           Int             @default(1) @map("pareto_rank")
+  spaceEfficiencyScore Decimal         @map("space_efficiency_score") @db.Decimal(5, 2)
+  naturalLightScore    Decimal         @map("natural_light_score") @db.Decimal(5, 2)
+  ventilationScore     Decimal         @map("ventilation_score") @db.Decimal(5, 2)
+  vastuScore           Decimal         @map("vastu_score") @db.Decimal(5, 2)
+  totalBuiltUpAreaSqFt Decimal         @map("total_built_up_area_sqft") @db.Decimal(10, 2)
+  estimatedCostInr     Decimal         @map("estimated_cost_inr") @db.Decimal(12, 2)
+  isActiveSelection    Boolean         @default(false) @map("is_active_selection")
+  floors               Floor[]
+  versions             DesignVersion[]
+  boqItems             BOQItem[]
+  costBreakdown        Cost?
+  models               ModelAsset[]
+  renders              RenderAsset[]
+  createdAt            DateTime        @default(now()) @map("created_at")
+
+  @@map("designs")
+}
+
+model DesignVersion {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  designId      String   @map("design_id") @db.Uuid
+  design        Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  versionNumber Int      @map("version_number")
+  changelog     String?
+  snapshotJson  Json     @map("snapshot_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("design_versions")
+}
+
+model Floor {
+  id                 String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  designId           String   @map("design_id") @db.Uuid
+  design             Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  floorNumber        Int      @map("floor_number")
+  name               String
+  elevationFt        Decimal  @default(0.0) @map("elevation_ft") @db.Decimal(8, 2)
+  totalBuiltAreaSqFt Decimal  @map("total_built_area_sqft") @db.Decimal(10, 2)
+  rooms              Room[]
+
+  @@map("floors")
+}
+
+model Room {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  floorId       String      @map("floor_id") @db.Uuid
+  floor         Floor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  name          String
+  type          String
+  xOffsetFt     Decimal     @map("x_offset_ft") @db.Decimal(8, 2)
+  yOffsetFt     Decimal     @map("y_offset_ft") @db.Decimal(8, 2)
+  widthFt       Decimal     @map("width_ft") @db.Decimal(8, 2)
+  heightFt      Decimal     @map("height_ft") @db.Decimal(8, 2)
+  areaSqFt      Decimal     @map("area_sqft") @db.Decimal(8, 2)
+  floorMaterial String      @default("Vitrified Tiles") @map("floor_material")
+  wallMaterial  String      @default("Acrylic Emulsion") @map("wall_material")
+  furniture     Furniture[]
+
+  @@map("rooms")
+}
+
+model Furniture {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  roomId      String   @map("room_id") @db.Uuid
+  room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  type        String
+  name        String
+  xFt         Decimal  @map("x_ft") @db.Decimal(8, 2)
+  yFt         Decimal  @map("y_ft") @db.Decimal(8, 2)
+  widthFt     Decimal  @map("width_ft") @db.Decimal(6, 2)
+  depthFt     Decimal  @map("depth_ft") @db.Decimal(6, 2)
+  rotationDeg Decimal  @default(0.0) @map("rotation_deg") @db.Decimal(6, 2)
+
+  @@map("furniture")
+}
+
+model BOQItem {
+  id             String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  designId       String  @map("design_id") @db.Uuid
+  design         Design  @relation(fields: [designId], references: [id], onDelete: Cascade)
+  category       String
+  itemName       String  @map("item_name")
+  quantity       Decimal @db.Decimal(12, 2)
+  unit           String
+  unitRateInr    Decimal @map("unit_rate_inr") @db.Decimal(10, 2)
+  totalAmountInr Decimal @map("total_amount_inr") @db.Decimal(12, 2)
+
+  @@map("boq")
+}
+
+model Cost {
+  id                  String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  designId            String  @unique @map("design_id") @db.Uuid
+  design              Design  @relation(fields: [designId], references: [id], onDelete: Cascade)
+  directSubtotalInr   Decimal @map("direct_subtotal_inr") @db.Decimal(12, 2)
+  contractorMarginInr Decimal @map("contractor_margin_inr") @db.Decimal(12, 2)
+  contingencyInr      Decimal @map("contingency_inr") @db.Decimal(12, 2)
+  gstTaxInr           Decimal @map("gst_tax_inr") @db.Decimal(12, 2)
+  grandTotalInr       Decimal @map("grand_total_inr") @db.Decimal(12, 2)
+  costPerSqftInr      Decimal @map("cost_per_sqft_inr") @db.Decimal(10, 2)
+  regionId            String  @default("mumbai") @map("region_id")
+
+  @@map("costs")
+}
+
+model ModelAsset {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  designId      String   @map("design_id") @db.Uuid
+  design        Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  storageUri    String   @map("storage_uri")
+  format        String
+  fileSizeBytes BigInt   @map("file_size_bytes")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("models")
+}
+
+model RenderAsset {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  designId      String   @map("design_id") @db.Uuid
+  design        Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  style         String
+  storageUri    String   @map("storage_uri")
+  prompt        String?
+  aspectRatio   String   @default("16:9") @map("aspect_ratio")
+  isConceptOnly Boolean  @default(false) @map("is_concept_only")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("renders")
+}
+
+model Report {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  projectId  String   @map("project_id") @db.Uuid
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reportType String   @map("report_type")
+  storageUri String   @map("storage_uri")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("reports")
+}
+
+model Job {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  projectId       String    @map("project_id") @db.Uuid
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  jobType         String    @map("job_type")
+  status          String    @default("queued")
+  progressPercent Int       @default(0) @map("progress_percent")
+  errorLog        String?   @map("error_log")
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+
+  @@map("jobs")
+}

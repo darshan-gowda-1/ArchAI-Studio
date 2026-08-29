@@ -1,0 +1,76 @@
+services:
+  # 1. FastAPI Core REST Engine
+  - type: web
+    name: archai-api
+    env: python
+    region: oregon
+    plan: standard
+    buildCommand: pip install -r apps/api/requirements.txt
+    startCommand: uvicorn apps.api.app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: archai-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: archai-redis
+          property: connectionString
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        value: archai-studio-assets
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_SOLAR_API_KEY
+        sync: false
+      - key: MESHY_API_KEY
+        sync: false
+
+  # 2. Celery Background Worker
+  - type: worker
+    name: archai-worker
+    env: python
+    region: oregon
+    plan: standard
+    buildCommand: pip install -r apps/api/requirements.txt
+    startCommand: celery -A apps.worker.celery_app.celery_app worker --loglevel=info --concurrency=4
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: archai-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: archai-redis
+          property: connectionString
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        value: archai-studio-assets
+
+databases:
+  # Managed PostgreSQL with PostGIS extension
+  - name: archai-postgres
+    region: oregon
+    plan: standard
+    postgresMajorVersion: 16
+
+  # Managed Redis Cache & Broker
+  - name: archai-redis
+    region: oregon
+    plan: standard
+    ipAllowList: []

@@ -1,0 +1,30 @@
+# ==============================================================================
+# ArchAI Studio - Celery Distributed Task & Blender Headless Worker Container
+# Handles heavy geometric NSGA-II optimization and Blender Cycles raytracing
+# ==============================================================================
+
+FROM python:3.11-slim
+
+# System dependencies for Celery, Redis, and OpenGL/Headless rendering
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgeos-dev \
+    libgdal-dev \
+    libgl1-mesa-glx \
+    libxi6 \
+    libgconf-2-4 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY server/ ./server/
+
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Start Celery Worker subscribed to compute and blender queues
+CMD ["celery", "-A", "server.workers.celery_app.celery_app", "worker", "--loglevel=info", "-Q", "compute_queue,blender_queue", "-c", "4"]
