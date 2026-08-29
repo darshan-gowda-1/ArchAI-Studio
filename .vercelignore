@@ -1,0 +1,22 @@
+# Vercel Deployment Ignore Rules
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pytest_cache/
+.pytest_cache/
+coverage/
+*.glb
+*.gltf
+*.ifc
+*.obj
+*.fbx
+*.blend
+*.blend1
+tmp/
+temp/
+*archai_blender_out*
+renders/
+assets/temp/
+apps/api/tests/
+apps/worker/
